@@ -51,6 +51,8 @@ Do
             Print num1 / num2
         Case "m"
             Print num1 * num2
+        Case "p"
+        print num1 ^ num2
     End Select
 
     Input "do you want to try again (y/n)", useranswer
