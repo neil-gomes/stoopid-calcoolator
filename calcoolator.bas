@@ -41,4 +41,4 @@ DO
 
 LOOP WHILE useranswer = "Y"
 
-END
+SYSTEM
