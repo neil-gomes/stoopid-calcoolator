@@ -7,7 +7,7 @@ DIM result AS DOUBLE
 IF _COMMANDCOUNT > 0 THEN
     expression = COMMAND$
     DIM idx AS LONG: idx = 1
-    ParseAddSub expression, idx, result
+    result = ParseAddSub#(expression, idx)
     PRINT result
     SYSTEM
 END IF
@@ -38,7 +38,7 @@ DO
 
     DIM idx2 AS LONG
     idx2 = 1
-    ParseAddSub expression, idx2, result
+    result = ParseAddSub#(expression, idx2)
     PRINT "=> "; result
 
     PRINT
@@ -50,47 +50,44 @@ PRINT
 
 SYSTEM
 
-SUB ParseAddSub (expr AS STRING, idx AS LONG, result AS DOUBLE)
-    DIM leftVal AS DOUBLE
-    DIM rightVal AS DOUBLE
+FUNCTION ParseAddSub# (expr AS STRING, idx AS LONG)
+    DIM result AS DOUBLE
 
-    ParseMultiplyDivide expr, idx, leftVal
-    result = leftVal
+    result = ParseMultiplyDivide#(expr, idx)
     
     DO WHILE idx <= LEN(expr)
         SkipSpaces expr, idx
         IF idx > LEN(expr) THEN EXIT DO
         IF ASC(expr, idx) = 43 THEN
             idx = idx + 1
-            ParseMultiplyDivide expr, idx, rightVal
-            result = result + rightVal
+            result = result + ParseMultiplyDivide#(expr, idx)
         ELSEIF ASC(expr, idx) = 45 _ANDALSO idx > 1 THEN
             idx = idx + 1
-            ParseMultiplyDivide expr, idx, rightVal
-            result = result - rightVal
+            result = result - ParseMultiplyDivide#(expr, idx)
         ELSE
             EXIT DO
         END IF
     LOOP
-END SUB
+    
+    ParseAddSub# = result
+END FUNCTION
 
-SUB ParseMultiplyDivide (expr AS STRING, idx AS LONG, result AS DOUBLE)
-    DIM leftVal AS DOUBLE
+FUNCTION ParseMultiplyDivide# (expr AS STRING, idx AS LONG)
+    DIM result AS DOUBLE
     DIM rightVal AS DOUBLE
     
-    ParsePower expr, idx, leftVal
-    result = leftVal
+    result = ParsePower#(expr, idx)
     
     DO WHILE idx <= LEN(expr)
         SkipSpaces expr, idx
         IF idx > LEN(expr) THEN EXIT DO
         IF ASC(expr, idx) = 42 THEN
             idx = idx + 1
-            ParsePower expr, idx, rightVal
+            rightVal = ParsePower#(expr, idx)
             result = result * rightVal
         ELSEIF ASC(expr, idx) = 47 THEN
             idx = idx + 1
-            ParsePower expr, idx, rightVal
+            rightVal = ParsePower#(expr, idx)
             IF rightVal <> 0 THEN
                 result = result / rightVal
             ELSE
@@ -100,48 +97,56 @@ SUB ParseMultiplyDivide (expr AS STRING, idx AS LONG, result AS DOUBLE)
             EXIT DO
         END IF
     LOOP
-END SUB
+    
+    ParseMultiplyDivide# = result
+END FUNCTION
 
-SUB ParsePower (expr AS STRING, idx AS LONG, result AS DOUBLE)
-    DIM leftVal AS DOUBLE
+FUNCTION ParsePower# (expr AS STRING, idx AS LONG)
+    DIM result AS DOUBLE
     DIM rightVal AS DOUBLE
     
-    ParseUnary expr, idx, leftVal
-    result = leftVal
+    result = ParseUnary#(expr, idx)
     
     IF idx <= LEN(expr) THEN
         SkipSpaces expr, idx
     END IF
     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 94 THEN
         idx = idx + 1
-        ParsePower expr, idx, rightVal
-        result = leftVal ^ rightVal
+        rightVal = ParsePower#(expr, idx)
+        result = result ^ rightVal
     END IF
-END SUB
+    
+    ParsePower# = result
+END FUNCTION
 
-SUB ParseUnary (expr AS STRING, idx AS LONG, result AS DOUBLE)
+FUNCTION ParseUnary# (expr AS STRING, idx AS LONG)
+    DIM result AS DOUBLE
+    
     SkipSpaces expr, idx
     
     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 45 THEN
         idx = idx + 1
-        ParsePrimary expr, idx, result
-        result = -result
+        result = -ParsePrimary#(expr, idx)
     ELSEIF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 43 THEN
         idx = idx + 1
-        ParsePrimary expr, idx, result
+        result = ParsePrimary#(expr, idx)
     ELSE
-        ParsePrimary expr, idx, result
+        result = ParsePrimary#(expr, idx)
     END IF
-END SUB
+    
+    ParseUnary# = result
+END FUNCTION
 
-SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
-    DIM innerVal AS DOUBLE, testStr AS STRING
+FUNCTION ParsePrimary# (expr AS STRING, idx AS LONG)
+    DIM result AS DOUBLE
+    DIM innerVal AS DOUBLE
+    DIM testStr AS STRING
     
     SkipSpaces expr, idx
     
     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
         idx = idx + 1
-        ParseAddSub expr, idx, result
+        result = ParseAddSub#(expr, idx)
         SkipSpaces expr, idx
         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
             idx = idx + 1
@@ -154,8 +159,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
             SkipSpaces expr, idx
             IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                 idx = idx + 1
-                ParseAddSub expr, idx, innerVal
+                innerVal = ParseAddSub#(expr, idx)
                 result = SQR(ABS(innerVal))
+                SkipSpaces expr, idx
                 IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                     idx = idx + 1
                 END IF
@@ -168,8 +174,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         result = SIN(innerVal)
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -179,8 +186,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         result = COS(innerVal)
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -190,8 +198,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         result = TAN(innerVal)
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -201,12 +210,13 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         IF innerVal > 0 THEN
                             result = LOG(innerVal)
                         ELSE
                             result = 0
                         END IF
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -216,8 +226,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         result = EXP(innerVal)
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -227,8 +238,9 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                     SkipSpaces expr, idx
                     IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
                         idx = idx + 1
-                        ParseAddSub expr, idx, innerVal
+                        innerVal = ParseAddSub#(expr, idx)
                         result = ABS(innerVal)
+                        SkipSpaces expr, idx
                         IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
                             idx = idx + 1
                         END IF
@@ -241,15 +253,18 @@ SUB ParsePrimary (expr AS STRING, idx AS LONG, result AS DOUBLE)
                         result = 2.71828182845905
                         idx = idx + 1
                     ELSE
-                        ParseNumber expr, idx, result
+                        result = ParseNumber#(expr, idx)
                     END IF
             END SELECT
         END IF
     END IF
-END SUB
+    
+    ParsePrimary# = result
+END FUNCTION
 
-SUB ParseNumber (expr AS STRING, idx AS LONG, result AS DOUBLE)
+FUNCTION ParseNumber# (expr AS STRING, idx AS LONG)
     DIM numStr AS STRING
+    DIM result AS DOUBLE
     
     SkipSpaces expr, idx
 
@@ -263,7 +278,9 @@ SUB ParseNumber (expr AS STRING, idx AS LONG, result AS DOUBLE)
     ELSE
         result = 0
     END IF
-END SUB
+    
+    ParseNumber# = result
+END FUNCTION
 
 SUB SkipSpaces (expr AS STRING, idx AS LONG)
     WHILE idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 32
