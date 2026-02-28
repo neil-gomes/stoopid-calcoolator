@@ -6,6 +6,10 @@ DIM result AS DOUBLE
 
 IF _COMMANDCOUNT > 0 THEN
     expression = COMMAND$
+    IF NOT ValidateParentheses(expression) THEN
+        PRINT "Error: Unbalanced parentheses"
+        SYSTEM
+    END IF
     DIM idx AS LONG: idx = 1
     result = ParseAddSub#(expression, idx)
     PRINT result
@@ -18,9 +22,10 @@ PRINT "     Calcoolator Expression REPL      "
 PRINT "======================================"
 PRINT
 PRINT "Operations: +, -, *, /, ^ (power)"
-PRINT "Functions:  abs, sin, cos, tan, log, exp, sqrt"
+PRINT "Functions:  abs, sin, cos, tan (radians), log (base 10), ln, exp, sqrt"
+PRINT "Conversion: d2r (degrees to radians), r2d (radians to degrees)"
 PRINT "Constants:  pi, e"
-PRINT "  Examples: 5+3, sin(pi/2), abs(-10), 2*pi*5"
+PRINT "  Examples: sin(pi/2), sin(d2r(90)), log(100), e^2, 2*pi"
 PRINT "  Type 'exit' or 'quit' to exit"
 PRINT
 
@@ -31,8 +36,13 @@ DO
         EXIT DO
     END IF
 
-    expression = LTRIM$(RTRIM$(expression))
+    expression = _TRIM$(expression)
     IF LEN(expression) = 0 THEN
+        _CONTINUE
+    END IF
+
+    IF NOT ValidateParentheses(expression) THEN
+        PRINT "Error: Unbalanced parentheses"
         _CONTINUE
     END IF
 
@@ -58,10 +68,10 @@ FUNCTION ParseAddSub# (expr AS STRING, idx AS LONG)
     DO WHILE idx <= LEN(expr)
         SkipSpaces expr, idx
         IF idx > LEN(expr) THEN EXIT DO
-        IF ASC(expr, idx) = 43 THEN
+        IF ASC(expr, idx) = _ASC_PLUS THEN
             idx = idx + 1
             result = result + ParseMultiplyDivide#(expr, idx)
-        ELSEIF ASC(expr, idx) = 45 _ANDALSO idx > 1 THEN
+        ELSEIF ASC(expr, idx) = _ASC_MINUS _ANDALSO idx > 1 THEN
             idx = idx + 1
             result = result - ParseMultiplyDivide#(expr, idx)
         ELSE
@@ -81,11 +91,11 @@ FUNCTION ParseMultiplyDivide# (expr AS STRING, idx AS LONG)
     DO WHILE idx <= LEN(expr)
         SkipSpaces expr, idx
         IF idx > LEN(expr) THEN EXIT DO
-        IF ASC(expr, idx) = 42 THEN
+        IF ASC(expr, idx) = _ASC_ASTERISK THEN
             idx = idx + 1
             rightVal = ParsePower#(expr, idx)
             result = result * rightVal
-        ELSEIF ASC(expr, idx) = 47 THEN
+        ELSEIF ASC(expr, idx) = _ASC_FORWARDSLASH THEN
             idx = idx + 1
             rightVal = ParsePower#(expr, idx)
             IF rightVal <> 0 THEN
@@ -110,7 +120,7 @@ FUNCTION ParsePower# (expr AS STRING, idx AS LONG)
     IF idx <= LEN(expr) THEN
         SkipSpaces expr, idx
     END IF
-    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 94 THEN
+    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_CARET THEN
         idx = idx + 1
         rightVal = ParsePower#(expr, idx)
         result = result ^ rightVal
@@ -124,10 +134,10 @@ FUNCTION ParseUnary# (expr AS STRING, idx AS LONG)
     
     SkipSpaces expr, idx
     
-    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 45 THEN
+    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_MINUS THEN
         idx = idx + 1
         result = -ParsePrimary#(expr, idx)
-    ELSEIF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 43 THEN
+    ELSEIF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_PLUS THEN
         idx = idx + 1
         result = ParsePrimary#(expr, idx)
     ELSE
@@ -144,11 +154,11 @@ FUNCTION ParsePrimary# (expr AS STRING, idx AS LONG)
     
     SkipSpaces expr, idx
     
-    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
         idx = idx + 1
         result = ParseAddSub#(expr, idx)
         SkipSpaces expr, idx
-        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
             idx = idx + 1
         END IF
     ELSE
@@ -157,58 +167,79 @@ FUNCTION ParsePrimary# (expr AS STRING, idx AS LONG)
         IF testStr = "sqrt" THEN
             idx = idx + 4
             SkipSpaces expr, idx
-            IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+            IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                 idx = idx + 1
                 innerVal = ParseAddSub#(expr, idx)
                 result = SQR(ABS(innerVal))
                 SkipSpaces expr, idx
-                IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                     idx = idx + 1
                 END IF
             END IF
         ELSE
             testStr = LCASE$(MID$(expr, idx, 3))
+            
+            IF MID$(LCASE$(expr), idx, 2) = "ln" THEN
+                testStr = "ln"
+            END IF
+            
             SELECT CASE testStr
                 CASE "sin"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         result = SIN(innerVal)
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE "cos"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         result = COS(innerVal)
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE "tan"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         result = TAN(innerVal)
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE "log"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
+                        idx = idx + 1
+                        innerVal = ParseAddSub#(expr, idx)
+                        IF innerVal > 0 THEN
+                            result = LOG(innerVal) / LOG(10)
+                        ELSE
+                            result = 0
+                        END IF
+                        SkipSpaces expr, idx
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
+                            idx = idx + 1
+                        END IF
+                    END IF
+                CASE "ln"
+                    idx = idx + 2
+                    SkipSpaces expr, idx
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         IF innerVal > 0 THEN
@@ -217,40 +248,64 @@ FUNCTION ParsePrimary# (expr AS STRING, idx AS LONG)
                             result = 0
                         END IF
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE "exp"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         result = EXP(innerVal)
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE "abs"
                     idx = idx + 3
                     SkipSpaces expr, idx
-                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 40 THEN
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
                         idx = idx + 1
                         innerVal = ParseAddSub#(expr, idx)
                         result = ABS(innerVal)
                         SkipSpaces expr, idx
-                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 41 THEN
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
+                            idx = idx + 1
+                        END IF
+                    END IF
+                CASE "d2r"
+                    idx = idx + 3
+                    SkipSpaces expr, idx
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
+                        idx = idx + 1
+                        innerVal = ParseAddSub#(expr, idx)
+                        result = _D2R(innerVal)
+                        SkipSpaces expr, idx
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
+                            idx = idx + 1
+                        END IF
+                    END IF
+                CASE "r2d"
+                    idx = idx + 3
+                    SkipSpaces expr, idx
+                    IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_LEFTBRACKET THEN
+                        idx = idx + 1
+                        innerVal = ParseAddSub#(expr, idx)
+                        result = _R2D(innerVal)
+                        SkipSpaces expr, idx
+                        IF idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_RIGHTBRACKET THEN
                             idx = idx + 1
                         END IF
                     END IF
                 CASE ELSE
                     IF MID$(LCASE$(expr), idx, 2) = "pi" THEN
-                        result = 3.14159265358979
+                        result = _PI
                         idx = idx + 2
-                    ELSEIF LEFT$(LCASE$(expr), 1) = "e" _ANDALSO (idx + 1 > LEN(expr) _ORELSE NOT ((ASC(expr, idx + 1) >= 48 _ANDALSO ASC(expr, idx + 1) <= 57) _ORELSE ASC(expr, idx + 1) = 46)) THEN
-                        result = 2.71828182845905
+                    ELSEIF ASC(expr, idx) = ASC("e") _ANDALSO (idx + 1 > LEN(expr) _ORELSE NOT ((ASC(expr, idx + 1) >= ASC("0") _ANDALSO ASC(expr, idx + 1) <= ASC("9")) _ORELSE ASC(expr, idx + 1) = _ASC_FULLSTOP)) THEN
+                        result = _E
                         idx = idx + 1
                     ELSE
                         result = ParseNumber#(expr, idx)
@@ -268,7 +323,7 @@ FUNCTION ParseNumber# (expr AS STRING, idx AS LONG)
     
     SkipSpaces expr, idx
 
-    WHILE idx <= LEN(expr) _ANDALSO ((ASC(expr, idx) >= 48 _ANDALSO ASC(expr, idx) <= 57) _ORELSE ASC(expr, idx) = 46)
+    WHILE idx <= LEN(expr) _ANDALSO ((ASC(expr, idx) >= ASC("0") _ANDALSO ASC(expr, idx) <= ASC("9")) _ORELSE ASC(expr, idx) = _ASC_FULLSTOP)
         numStr = numStr + CHR$(ASC(expr, idx))
         idx = idx + 1
     WEND
@@ -283,7 +338,31 @@ FUNCTION ParseNumber# (expr AS STRING, idx AS LONG)
 END FUNCTION
 
 SUB SkipSpaces (expr AS STRING, idx AS LONG)
-    WHILE idx <= LEN(expr) _ANDALSO ASC(expr, idx) = 32
+    WHILE idx <= LEN(expr) _ANDALSO ASC(expr, idx) = _ASC_SPACE
         idx = idx + 1
     WEND
 END SUB
+
+FUNCTION ValidateParentheses (expr AS STRING)
+    DIM i AS LONG
+    DIM depth AS LONG
+    
+    depth = 0
+    FOR i = 1 TO LEN(expr)
+        IF ASC(expr, i) = _ASC_LEFTBRACKET THEN
+            depth = depth + 1
+        ELSEIF ASC(expr, i) = _ASC_RIGHTBRACKET THEN
+            depth = depth - 1
+            IF depth < 0 THEN
+                ValidateParentheses = 0
+                EXIT FUNCTION
+            END IF
+        END IF
+    NEXT i
+    
+    IF depth <> 0 THEN
+        ValidateParentheses = 0
+    ELSE
+        ValidateParentheses = -1
+    END IF
+END FUNCTION
