@@ -1,8 +1,7 @@
 $CONSOLE:ONLY
 OPTION _EXPLICIT
 
-DIM expression AS STRING
-DIM result AS DOUBLE
+DIM expression AS STRING, idx AS LONG
 
 IF _COMMANDCOUNT > 0 THEN
     expression = COMMAND$
@@ -10,9 +9,8 @@ IF _COMMANDCOUNT > 0 THEN
         PRINT "Error: Unbalanced parentheses"
         SYSTEM
     END IF
-    DIM idx AS LONG: idx = 1
-    result = ParseAddSub#(expression, idx)
-    PRINT result
+    idx = 1
+    PRINT ParseAddSub#(expression, idx)
     SYSTEM
 END IF
 
@@ -46,10 +44,8 @@ DO
         _CONTINUE
     END IF
 
-    DIM idx2 AS LONG
-    idx2 = 1
-    result = ParseAddSub#(expression, idx2)
-    PRINT "=> "; result
+    idx = 1
+    PRINT "=> "; ParseAddSub#(expression, idx)
 
     PRINT
 LOOP
@@ -64,7 +60,7 @@ FUNCTION ParseAddSub# (expr AS STRING, idx AS LONG)
     DIM result AS DOUBLE
 
     result = ParseMultiplyDivide#(expr, idx)
-    
+
     DO WHILE idx <= LEN(expr)
         SkipSpaces expr, idx
         IF idx > LEN(expr) THEN EXIT DO
@@ -85,7 +81,7 @@ END FUNCTION
 FUNCTION ParseMultiplyDivide# (expr AS STRING, idx AS LONG)
     DIM result AS DOUBLE
     DIM rightVal AS DOUBLE
-    
+
     result = ParsePower#(expr, idx)
     
     DO WHILE idx <= LEN(expr)
